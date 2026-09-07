@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>IxlosJarimabot</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg: var(--tg-theme-bg-color, #f4f6f8);
+    --text: var(--tg-theme-text-color, #1c1c1e);
+    --hint: var(--tg-theme-hint-color, #8e8e93);
+    --link: var(--tg-theme-link-color, #2481cc);
+    --button: var(--tg-theme-button-color, #2481cc);
+    --button-text: var(--tg-theme-button-text-color, #ffffff);
+    --card: var(--tg-theme-secondary-bg-color, #ffffff);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg); color:var(--text); padding-bottom:24px;
+  }
+  .header{
+    padding:20px 16px 14px; text-align:center;
+  }
+  .header h1{font-size:20px; margin:0 0 4px;}
+  .header p{color:var(--hint); font-size:13px; margin:0;}
+  .search{
+    margin:0 16px 12px; position:relative;
+  }
+  .search input{
+    width:100%; padding:11px 14px; border-radius:12px; border:none;
+    background:var(--card); color:var(--text); font-size:15px; outline:none;
+  }
+  .list{padding:0 16px; display:flex; flex-direction:column; gap:10px;}
+  .teacher-card{
+    background:var(--card); border-radius:14px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px; cursor:pointer;
+    transition:transform .1s ease;
+  }
+  .teacher-card:active{transform:scale(0.98);}
+  .avatar{
+    width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,#2481cc,#5ec8fa);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; font-size:16px; flex-shrink:0;
+  }
+  .t-info{flex:1; min-width:0;}
+  .t-name{font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .t-pos{font-size:12.5px; color:var(--hint); margin-top:2px;}
+  .chevron{color:var(--hint); font-size:18px;}
+
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  .back-row{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 16px 6px;
+  }
+  .back-row .back-link{color:var(--link); font-size:15px; font-weight:500; cursor:pointer;}
+  .back-row .home-link{color:var(--hint); font-size:14px; font-weight:500; cursor:pointer;}
+
+  .selected-teacher{
+    margin:6px 16px 16px; background:var(--card); border-radius:14px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px;
+  }
+
+  .fine-type-card{
+    background:var(--card); border-radius:14px; padding:14px 16px; margin:0 16px 10px;
+    display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+  }
+  .fine-type-card:active{transform:scale(0.98);}
+  .ft-name{font-size:15px; font-weight:600;}
+  .ft-amount{font-size:14px; color:var(--link); font-weight:600;}
+
+  .confirm-box{
+    margin:16px; background:var(--card); border-radius:16px; padding:20px;
+  }
+  .confirm-row{display:flex; justify-content:space-between; padding:8px 0; font-size:14.5px; border-bottom:1px solid rgba(128,128,128,.15);}
+  .confirm-row:last-child{border-bottom:none;}
+  .confirm-row .label{color:var(--hint);}
+  .confirm-row .value{font-weight:600; text-align:right; max-width:60%;}
+
+  textarea{
+    width:100%; margin-top:12px; border-radius:12px; border:none; padding:12px;
+    background:var(--bg); color:var(--text); font-size:14px; resize:none; min-height:60px; font-family:inherit;
+  }
+
+  .amount-input{
+    width:100%; padding:11px 14px; border-radius:12px; border:none; margin-top:8px;
+    background:var(--bg); color:var(--text); font-size:16px; font-weight:600; outline:none;
+  }
+
+  .primary-btn{
+    display:block; width:calc(100% - 32px); margin:8px 16px; padding:14px; border:none;
+    border-radius:14px; background:var(--button); color:var(--button-text); font-size:16px; font-weight:600;
+    cursor:pointer;
+  }
+  .primary-btn:disabled{opacity:.5;}
+
+  .empty{text-align:center; color:var(--hint); padding:40px 20px; font-size:14px;}
+  .success{
+    text-align:center; padding:50px 20px;
+  }
+  .success .icon{font-size:56px; margin-bottom:12px;}
+  .success h2{margin:0 0 6px; font-size:19px;}
+  .success p{color:var(--hint); font-size:14px; margin:0;}
+</style>
+</head>
+<body>
+
+  <!-- SCREEN 1: Teachers list -->
+  <div class="screen active" id="screen-teachers">
+    <div class="header">
+      <h1>👨‍🏫 O'qituvchilar</h1>
+      <p>Jarima belgilash uchun xodimni tanlang</p>
+    </div>
+    <div class="search">
+      <input type="text" id="searchInput" placeholder="🔍 Ism bo'yicha qidirish...">
+    </div>
+    <div class="list" id="teachersList"></div>
+  </div>
+
+  <!-- SCREEN 2: Fine types -->
+  <div class="screen" id="screen-finetypes">
+    <div class="back-row">
+      <span class="back-link" onclick="goTo('screen-teachers')">‹ Orqaga</span>
+      <span class="home-link" onclick="resetFlow()">🏠 Bosh menyu</span>
+    </div>
+    <div class="selected-teacher" id="selectedTeacherCard"></div>
+    <div id="fineTypesList"></div>
+  </div>
+
+  <!-- SCREEN 3: Confirm -->
+  <div class="screen" id="screen-confirm">
+    <div class="back-row">
+      <span class="back-link" onclick="goTo('screen-finetypes')">‹ Orqaga</span>
+      <span class="home-link" onclick="resetFlow()">🏠 Bosh menyu</span>
+    </div>
+    <div class="confirm-box">
+      <div class="confirm-row"><span class="label">O'qituvchi</span><span class="value" id="cf-teacher"></span></div>
+      <div class="confirm-row"><span class="label">Jarima turi</span><span class="value" id="cf-finetype"></span></div>
+      <div class="confirm-row">
+        <span class="label">Summa (so'm)</span>
+        <input class="amount-input" id="cf-amount" type="number" inputmode="numeric">
+      </div>
+      <textarea id="cf-comment" placeholder="Izoh (ixtiyoriy)..."></textarea>
+    </div>
+    <button class="primary-btn" id="confirmBtn" onclick="submitFine()">✅ Jarimani tasdiqlash</button>
+  </div>
+
+  <!-- SCREEN 4: Success -->
+  <div class="screen" id="screen-success">
+    <div class="success">
+      <div class="icon">✅</div>
+      <h2>Jarima kiritildi!</h2>
+      <p id="successText"></p>
+    </div>
+    <button class="primary-btn" onclick="resetFlow()">🔁 Yana jarima kiritish</button>
+  </div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const initData = tg ? tg.initData : "";
+
+let teachers = [];
+let fineTypes = [];
+let selectedTeacher = null;
+let selectedFineType = null;
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json", "X-Init-Data": initData, ...(options.headers || {}) },
+  });
+  if (!res.ok) { throw new Error((await res.json()).detail || "Xatolik"); }
+  return res.json();
+}
+
+function initials(name) {
+  return name.trim().split(/\s+/).slice(0,2).map(w => w[0]?.toUpperCase() || "").join("");
+}
+
+function renderTeachers(filter = "") {
+  const list = document.getElementById("teachersList");
+  const filtered = teachers.filter(t => t.full_name.toLowerCase().includes(filter.toLowerCase()));
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty">Hech narsa topilmadi</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(t => `
+    <div class="teacher-card" onclick="selectTeacher(${t.id})">
+      <div class="avatar">${initials(t.full_name)}</div>
+      <div class="t-info">
+        <div class="t-name">${t.full_name}</div>
+        <div class="t-pos">${t.position || "Xodim"}</div>
+      </div>
+      <div class="chevron">›</div>
+    </div>
+  `).join("");
+}
+
+document.getElementById("searchInput").addEventListener("input", e => renderTeachers(e.target.value));
+
+function selectTeacher(id) {
+  selectedTeacher = teachers.find(t => t.id === id);
+  document.getElementById("selectedTeacherCard").innerHTML = `
+    <div class="avatar">${initials(selectedTeacher.full_name)}</div>
+    <div class="t-info">
+      <div class="t-name">${selectedTeacher.full_name}</div>
+      <div class="t-pos">${selectedTeacher.position || "Xodim"}</div>
+    </div>
+  `;
+  renderFineTypes();
+  goTo("screen-finetypes");
+}
+
+function renderFineTypes() {
+  const list = document.getElementById("fineTypesList");
+  if (!fineTypes.length) {
+    list.innerHTML = `<div class="empty">Jarima turlari hali qo'shilmagan</div>`;
+    return;
+  }
+  list.innerHTML = fineTypes.map(ft => `
+    <div class="fine-type-card" onclick="selectFineType(${ft.id})">
+      <div class="ft-name">${ft.name}</div>
+      <div class="ft-amount">${Number(ft.amount).toLocaleString()} so'm</div>
+    </div>
+  `).join("");
+}
+
+function selectFineType(id) {
+  selectedFineType = fineTypes.find(f => f.id === id);
+  document.getElementById("cf-teacher").textContent = selectedTeacher.full_name;
+  document.getElementById("cf-finetype").textContent = selectedFineType.name;
+  document.getElementById("cf-amount").value = selectedFineType.amount;
+  document.getElementById("cf-comment").value = "";
+  goTo("screen-confirm");
+}
+
+async function submitFine() {
+  const btn = document.getElementById("confirmBtn");
+  btn.disabled = true; btn.textContent = "⏳ Yuborilmoqda...";
+  try {
+    const amount = parseInt(document.getElementById("cf-amount").value || "0", 10);
+    const comment = document.getElementById("cf-comment").value;
+    const res = await api("/api/fines", {
+      method: "POST",
+      body: JSON.stringify({
+        teacher_id: selectedTeacher.id,
+        fine_type_id: selectedFineType.id,
+        amount, comment,
+      }),
+    });
+    document.getElementById("successText").textContent =
+      `${res.teacher_name} — ${res.fine_type_name} (${Number(res.amount).toLocaleString()} so'm)`;
+    if (tg) tg.HapticFeedback?.notificationOccurred("success");
+    goTo("screen-success");
+  } catch (e) {
+    alert("Xatolik: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "✅ Jarimani tasdiqlash";
+  }
+}
+
+function resetFlow() {
+  selectedTeacher = null; selectedFineType = null;
+  goTo("screen-teachers");
+}
+
+function goTo(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  if (tg) {
+    if (id === "screen-teachers") tg.BackButton.hide();
+    else tg.BackButton.show();
+  }
+}
+
+if (tg) {
+  tg.BackButton.onClick(() => {
+    if (document.getElementById("screen-confirm").classList.contains("active")) goTo("screen-finetypes");
+    else if (document.getElementById("screen-finetypes").classList.contains("active")) goTo("screen-teachers");
+    else if (document.getElementById("screen-success").classList.contains("active")) resetFlow();
+  });
+}
+
+async function init() {
+  try {
+    [teachers, fineTypes] = await Promise.all([api("/api/teachers"), api("/api/fine-types")]);
+    renderTeachers();
+  } catch (e) {
+    document.getElementById("teachersList").innerHTML = `<div class="empty">Xatolik: ${e.message}</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>IxlosJarimabot — Admin panel</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg: var(--tg-theme-bg-color, #f4f6f8);
+    --text: var(--tg-theme-text-color, #1c1c1e);
+    --hint: var(--tg-theme-hint-color, #8e8e93);
+    --link: var(--tg-theme-link-color, #2481cc);
+    --button: var(--tg-theme-button-color, #2481cc);
+    --button-text: var(--tg-theme-button-text-color, #ffffff);
+    --card: var(--tg-theme-secondary-bg-color, #ffffff);
+    --danger:#e5484d;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); padding-bottom:90px;}
+  .header{padding:18px 16px 10px; text-align:center;}
+  .header h1{font-size:19px; margin:0 0 2px;}
+  .header p{color:var(--hint); font-size:12.5px; margin:0;}
+
+  .tabs{display:flex; gap:6px; padding:6px 12px 14px; overflow-x:auto;}
+  .tab{
+    flex-shrink:0; padding:8px 14px; border-radius:20px; background:var(--card); color:var(--hint);
+    font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .tab.active{background:var(--button); color:var(--button-text);}
+
+  .panel{display:none; padding:0 16px;}
+  .panel.active{display:block;}
+
+  .card{background:var(--card); border-radius:14px; padding:14px 16px; margin-bottom:10px;}
+  .row-between{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .name{font-weight:600; font-size:14.5px;}
+  .sub{color:var(--hint); font-size:12.5px; margin-top:2px;}
+  .amount{color:var(--link); font-weight:700; font-size:14px;}
+
+  .icon-btn{
+    border:none; background:transparent; font-size:18px; cursor:pointer; padding:4px 6px;
+  }
+
+  .fab{
+    position:fixed; bottom:20px; right:20px; width:54px; height:54px; border-radius:50%;
+    background:var(--button); color:var(--button-text); border:none; font-size:26px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
+  }
+
+  .modal-bg{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50;
+    align-items:flex-end; justify-content:center;
+  }
+  .modal-bg.active{display:flex;}
+  .modal{
+    background:var(--bg); width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:20px 18px 26px;
+    animation:up .2s ease;
+  }
+  @keyframes up{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .modal h3{margin:0 0 14px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12.5px; color:var(--hint); margin-bottom:5px;}
+  .field input, .field select{
+    width:100%; padding:11px 12px; border-radius:10px; border:none; background:var(--card);
+    color:var(--text); font-size:15px; outline:none;
+  }
+  .modal-actions{display:flex; gap:10px; margin-top:16px;}
+  .btn{flex:1; padding:12px; border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer;}
+  .btn-primary{background:var(--button); color:var(--button-text);}
+  .btn-secondary{background:var(--card); color:var(--text);}
+  .btn-danger{background:var(--danger); color:#fff;}
+
+  .period-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;}
+  .period-btn{padding:12px; border-radius:12px; background:var(--card); border:none; font-size:14px; font-weight:600; color:var(--text); cursor:pointer;}
+  .period-btn.active{background:var(--button); color:var(--button-text);}
+
+  .stat-box{background:var(--card); border-radius:14px; padding:16px; margin-bottom:12px; text-align:center;}
+  .stat-box .big{font-size:24px; font-weight:700; color:var(--link);}
+  .stat-box .lbl{color:var(--hint); font-size:12.5px; margin-top:2px;}
+
+  select#monthPicker, select#yearPicker{margin-bottom:12px;}
+  .empty{text-align:center; color:var(--hint); padding:30px 10px; font-size:13.5px;}
+  .badge{font-size:10.5px; background:#ffd76620; color:#b8860b; padding:2px 8px; border-radius:20px; margin-left:6px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛠 Admin panel</h1>
+  <p id="whoami">IxlosJarimabot boshqaruvi</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="teachers" onclick="switchTab('teachers')">👨‍🏫 O'qituvchilar</div>
+  <div class="tab" data-tab="finetypes" onclick="switchTab('finetypes')">⚠️ Jarima turlari</div>
+  <div class="tab" data-tab="fines" onclick="switchTab('fines')">🧾 Jarimalar</div>
+  <div class="tab" data-tab="reports" onclick="switchTab('reports')">📊 Hisobotlar</div>
+  <div class="tab" data-tab="admins" onclick="switchTab('admins')">🛡 Adminlar</div>
+</div>
+
+<!-- TEACHERS -->
+<div class="panel active" id="panel-teachers">
+  <div id="teachersAdminList"></div>
+</div>
+<button class="fab" id="fabTeachers" onclick="openTeacherModal()">+</button>
+
+<!-- FINE TYPES -->
+<div class="panel" id="panel-finetypes">
+  <div id="fineTypesAdminList"></div>
+</div>
+
+<!-- FINES (barcha kiritilgan jarimalar) -->
+<div class="panel" id="panel-fines">
+  <div class="field" style="padding:0 0 10px;">
+    <input id="finesSearch" placeholder="🔍 O'qituvchi ismi bo'yicha qidirish..." oninput="renderFinesAdmin()">
+  </div>
+  <div id="finesAdminList"></div>
+</div>
+
+<!-- REPORTS -->
+<div class="panel" id="panel-reports">
+  <div class="period-grid">
+    <button class="period-btn active" data-p="today" onclick="pickPeriod('today')">📅 Kunlik</button>
+    <button class="period-btn" data-p="week" onclick="pickPeriod('week')">🗓 Haftalik</button>
+    <button class="period-btn" data-p="month" onclick="pickPeriod('month')">📆 Shu oy</button>
+    <button class="period-btn" data-p="year" onclick="pickPeriod('year')">📈 Shu yil</button>
+  </div>
+  <select id="monthPicker" style="display:none;"></select>
+  <div class="stat-box">
+    <div class="big" id="repTotal">0 so'm</div>
+    <div class="lbl" id="repLabel">Ma'lumot yuklanmoqda...</div>
+  </div>
+  <div id="repSummaryList"></div>
+  <button class="btn btn-primary" style="width:100%; margin-top:12px;" onclick="downloadReport()">⬇️ Excel hisobotni yuklab olish</button>
+</div>
+
+<!-- ADMINS -->
+<div class="panel" id="panel-admins">
+  <div id="adminsList"></div>
+</div>
+<button class="fab" id="fabAdmins" style="display:none;" onclick="openAdminModal()">+</button>
+
+<!-- Teacher Modal -->
+<div class="modal-bg" id="teacherModalBg">
+  <div class="modal">
+    <h3 id="teacherModalTitle">Yangi o'qituvchi</h3>
+    <input type="hidden" id="teacherId">
+    <div class="field"><label>Ism familiya</label><input id="teacherName" placeholder="Aliyev Vali"></div>
+    <div class="field"><label>Lavozimi</label><input id="teacherPosition" placeholder="Matematika o'qituvchisi"></div>
+    <div class="field"><label>Telefon (ixtiyoriy)</label><input id="teacherPhone" placeholder="+998 90 123 45 67"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('teacherModalBg')">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="saveTeacher()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fine Type Modal -->
+<div class="modal-bg" id="ftModalBg">
+  <div class="modal">
+    <h3 id="ftModalTitle">Yangi jarima turi</h3>
+    <input type="hidden" id="ftId">
+    <div class="field"><label>Nomi</label><input id="ftName" placeholder="Darsga kechikish"></div>
+    <div class="field"><label>Summasi (so'm)</label><input id="ftAmount" type="number" placeholder="50000"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('ftModalBg')">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="saveFineType()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fine Edit Modal -->
+<div class="modal-bg" id="fineModalBg">
+  <div class="modal">
+    <h3>Jarimani tahrirlash</h3>
+    <input type="hidden" id="fineId">
+    <div class="field">
+      <label>O'qituvchi</label>
+      <select id="fineTeacherSel"></select>
+    </div>
+    <div class="field">
+      <label>Jarima turi</label>
+      <select id="fineTypeSel"></select>
+    </div>
+    <div class="field"><label>Summa (so'm)</label><input id="fineAmount" type="number"></div>
+    <div class="field"><label>Izoh</label><input id="fineComment" placeholder="Izoh (ixtiyoriy)"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('fineModalBg')">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="saveFine()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal-bg" id="adminModalBg">
+  <div class="modal">
+    <h3>Yangi admin qo'shish</h3>
+    <div class="field"><label>Telegram chat_id</label><input id="newAdminId" type="number" placeholder="123456789"></div>
+    <div class="field"><label>Ism (ixtiyoriy)</label><input id="newAdminName" placeholder="Aliyev Vali"></div>
+    <p style="color:var(--hint); font-size:12px;">💡 chat_id ni bilish uchun xodim botga <code>/id</code> buyrug'ini yuborishi kerak.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('adminModalBg')">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="saveAdmin()">Qo'shish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const initData = tg ? tg.initData : "";
+
+let teachers = [], fineTypes = [], admins = [], fines = [];
+let me = { is_admin: false, is_super_admin: false };
+let currentPeriod = "today";
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json", "X-Init-Data": initData, ...(options.headers || {}) },
+  });
+  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || "Xatolik"); }
+  return res.json();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + tab));
+  document.getElementById("fabTeachers").style.display = tab === "teachers" ? "block" : "none";
+  document.getElementById("fabAdmins").style.display = (tab === "admins" && me.is_super_admin) ? "block" : "none";
+  if (tab === "reports") loadReport();
+  if (tab === "fines") loadFines();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+function openModal(id) { document.getElementById(id).classList.add("active"); }
+
+// ---------------- Teachers ----------------
+function renderTeachersAdmin() {
+  const list = document.getElementById("teachersAdminList");
+  if (!teachers.length) { list.innerHTML = `<div class="empty">Hali o'qituvchi qo'shilmagan</div>`; return; }
+  list.innerHTML = teachers.map(t => `
+    <div class="card row-between">
+      <div>
+        <div class="name">${t.full_name}</div>
+        <div class="sub">${t.position || "Xodim"} ${t.phone ? "· " + t.phone : ""}</div>
+      </div>
+      <div>
+        <button class="icon-btn" onclick='openTeacherModal(${JSON.stringify(t)})'>✏️</button>
+        <button class="icon-btn" onclick="removeTeacher(${t.id})">🗑</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function openTeacherModal(t = null) {
+  document.getElementById("teacherModalTitle").textContent = t ? "O'qituvchini tahrirlash" : "Yangi o'qituvchi";
+  document.getElementById("teacherId").value = t ? t.id : "";
+  document.getElementById("teacherName").value = t ? t.full_name : "";
+  document.getElementById("teacherPosition").value = t ? t.position : "";
+  document.getElementById("teacherPhone").value = t ? t.phone : "";
+  openModal("teacherModalBg");
+}
+
+async function saveTeacher() {
+  const id = document.getElementById("teacherId").value;
+  const payload = {
+    full_name: document.getElementById("teacherName").value.trim(),
+    position: document.getElementById("teacherPosition").value.trim(),
+    phone: document.getElementById("teacherPhone").value.trim(),
+  };
+  if (!payload.full_name) { alert("Ism familiyani kiriting"); return; }
+  try {
+    if (id) await api(`/api/admin/teachers/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    else await api("/api/admin/teachers", { method: "POST", body: JSON.stringify(payload) });
+    closeModal("teacherModalBg");
+    await loadAll();
+  } catch (e) { alert(e.message); }
+}
+
+async function removeTeacher(id) {
+  if (!confirm("Rostdan ham o'chirmoqchimisiz?")) return;
+  await api(`/api/admin/teachers/${id}`, { method: "DELETE" });
+  await loadAll();
+}
+
+// ---------------- Fine types ----------------
+function renderFineTypesAdmin() {
+  const list = document.getElementById("fineTypesAdminList");
+  const addBtn = `<button class="btn btn-primary" style="width:100%; margin-top:6px;" onclick="openFtModal()">+ Yangi jarima turi</button>`;
+  if (!fineTypes.length) {
+    list.innerHTML = `<div class="empty">Hali jarima turi qo'shilmagan</div>` + addBtn;
+    return;
+  }
+  list.innerHTML = fineTypes.map(ft => `
+    <div class="card row-between">
+      <div>
+        <div class="name">${ft.name}</div>
+        <div class="sub amount">${Number(ft.amount).toLocaleString()} so'm</div>
+      </div>
+      <div>
+        <button class="icon-btn" onclick='openFtModal(${JSON.stringify(ft)})'>✏️</button>
+        <button class="icon-btn" onclick="removeFt(${ft.id})">🗑</button>
+      </div>
+    </div>
+  `).join("") + addBtn;
+}
+
+function openFtModal(ft = null) {
+  document.getElementById("ftModalTitle").textContent = ft ? "Jarima turini tahrirlash" : "Yangi jarima turi";
+  document.getElementById("ftId").value = ft ? ft.id : "";
+  document.getElementById("ftName").value = ft ? ft.name : "";
+  document.getElementById("ftAmount").value = ft ? ft.amount : "";
+  openModal("ftModalBg");
+}
+
+async function saveFineType() {
+  const id = document.getElementById("ftId").value;
+  const payload = {
+    name: document.getElementById("ftName").value.trim(),
+    amount: parseInt(document.getElementById("ftAmount").value || "0", 10),
+  };
+  if (!payload.name) { alert("Nomini kiriting"); return; }
+  try {
+    if (id) await api(`/api/admin/fine-types/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    else await api("/api/admin/fine-types", { method: "POST", body: JSON.stringify(payload) });
+    closeModal("ftModalBg");
+    await loadAll();
+  } catch (e) { alert(e.message); }
+}
+
+async function removeFt(id) {
+  if (!confirm("Rostdan ham o'chirmoqchimisiz?")) return;
+  await api(`/api/admin/fine-types/${id}`, { method: "DELETE" });
+  await loadAll();
+}
+
+// ---------------- Fines (kiritilgan jarimalar ro'yxati) ----------------
+function fmtDate(iso) {
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function loadFines() {
+  document.getElementById("finesAdminList").innerHTML = `<div class="empty">Yuklanmoqda...</div>`;
+  fines = await api("/api/fines/recent?limit=200");
+  renderFinesAdmin();
+}
+
+function renderFinesAdmin() {
+  const q = (document.getElementById("finesSearch")?.value || "").toLowerCase();
+  const list = document.getElementById("finesAdminList");
+  const filtered = fines.filter(f => f.teacher_name.toLowerCase().includes(q));
+  if (!filtered.length) { list.innerHTML = `<div class="empty">Jarimalar topilmadi</div>`; return; }
+  list.innerHTML = filtered.map(f => `
+    <div class="card row-between">
+      <div>
+        <div class="name">${f.teacher_name}</div>
+        <div class="sub">${f.fine_type_name} · ${fmtDate(f.created_at)}</div>
+        ${f.comment ? `<div class="sub">💬 ${f.comment}</div>` : ""}
+      </div>
+      <div style="text-align:right;">
+        <div class="amount">${Number(f.amount).toLocaleString()} so'm</div>
+        <div>
+          <button class="icon-btn" onclick='openFineModal(${JSON.stringify(f).replace(/'/g, "&#39;")})'>✏️</button>
+          <button class="icon-btn" onclick="removeFine(${f.id})">🗑</button>
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function openFineModal(f) {
+  document.getElementById("fineId").value = f.id;
+  const teacherSel = document.getElementById("fineTeacherSel");
+  const ftSel = document.getElementById("fineTypeSel");
+  teacherSel.innerHTML = teachers.map(t => `<option value="${t.id}" ${t.id===f.teacher_id?"selected":""}>${t.full_name}</option>`).join("");
+  ftSel.innerHTML = fineTypes.map(ft => `<option value="${ft.id}" ${ft.id===f.fine_type_id?"selected":""}>${ft.name}</option>`).join("");
+  document.getElementById("fineAmount").value = f.amount;
+  document.getElementById("fineComment").value = f.comment || "";
+  openModal("fineModalBg");
+}
+
+async function saveFine() {
+  const id = document.getElementById("fineId").value;
+  const payload = {
+    teacher_id: parseInt(document.getElementById("fineTeacherSel").value, 10),
+    fine_type_id: parseInt(document.getElementById("fineTypeSel").value, 10),
+    amount: parseInt(document.getElementById("fineAmount").value || "0", 10),
+    comment: document.getElementById("fineComment").value.trim(),
+  };
+  try {
+    await api(`/api/admin/fines/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    closeModal("fineModalBg");
+    await loadFines();
+  } catch (e) { alert(e.message); }
+}
+
+async function removeFine(id) {
+  if (!confirm("Bu jarima yozuvini o'chirmoqchimisiz?")) return;
+  await api(`/api/admin/fines/${id}`, { method: "DELETE" });
+  await loadFines();
+}
+
+// ---------------- Admins ----------------
+function renderAdmins() {
+  const list = document.getElementById("adminsList");
+  list.innerHTML = admins.map(a => `
+    <div class="card row-between">
+      <div>
+        <div class="name">${a.chat_id} ${a.is_super ? '<span class="badge">Bosh admin</span>' : ''}</div>
+      </div>
+      ${(!a.is_super && me.is_super_admin) ? `<button class="icon-btn" onclick="removeAdmin(${a.chat_id})">🗑</button>` : ""}
+    </div>
+  `).join("");
+}
+
+function openAdminModal() { openModal("adminModalBg"); }
+
+async function saveAdmin() {
+  const chat_id = parseInt(document.getElementById("newAdminId").value, 10);
+  const full_name = document.getElementById("newAdminName").value.trim();
+  if (!chat_id) { alert("chat_id ni kiriting"); return; }
+  try {
+    await api("/api/admin/admins", { method: "POST", body: JSON.stringify({ chat_id, full_name }) });
+    closeModal("adminModalBg");
+    admins = await api("/api/admin/admins");
+    renderAdmins();
+  } catch (e) { alert(e.message); }
+}
+
+async function removeAdmin(chat_id) {
+  if (!confirm("Bu foydalanuvchini adminlikdan olib tashlaysizmi?")) return;
+  await api(`/api/admin/admins/${chat_id}`, { method: "DELETE" });
+  admins = await api("/api/admin/admins");
+  renderAdmins();
+}
+
+// ---------------- Reports ----------------
+function fillMonthPicker() {
+  const sel = document.getElementById("monthPicker");
+  const months = ["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"];
+  const now = new Date();
+  let opts = [];
+  for (let i = 0; i < 12; i++) {
+    let d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    opts.push(`<option value="${d.getFullYear()}-${d.getMonth()+1}">${months[d.getMonth()]} ${d.getFullYear()}</option>`);
+  }
+  sel.innerHTML = opts.join("");
+  sel.onchange = () => loadReport();
+}
+
+function pickPeriod(p) {
+  currentPeriod = p;
+  document.querySelectorAll(".period-btn").forEach(b => b.classList.toggle("active", b.dataset.p === p));
+  document.getElementById("monthPicker").style.display = p === "month_pick" ? "block" : "none";
+  loadReport();
+}
+
+async function loadReport() {
+  document.getElementById("repLabel").textContent = "Yuklanmoqda...";
+  try {
+    let url = `/api/admin/reports/summary?period=${currentPeriod}`;
+    const res = await api(url);
+    document.getElementById("repTotal").textContent = Number(res.total).toLocaleString() + " so'm";
+    document.getElementById("repLabel").textContent = res.label + ` (${res.count} ta jarima)`;
+    const list = document.getElementById("repSummaryList");
+    const withFines = res.summary.filter(s => s.cnt > 0);
+    list.innerHTML = withFines.length ? withFines.map(s => `
+      <div class="card row-between">
+        <div class="name">${s.teacher_name}</div>
+        <div>
+          <div class="amount">${Number(s.total).toLocaleString()} so'm</div>
+          <div class="sub" style="text-align:right;">${s.cnt} ta jarima</div>
+        </div>
+      </div>
+    `).join("") : `<div class="empty">Bu davrda jarima kiritilmagan</div>`;
+  } catch (e) {
+    document.getElementById("repLabel").textContent = "Xatolik: " + e.message;
+  }
+}
+
+function downloadReport() {
+  const url = `/api/admin/reports/download?period=${currentPeriod}&_init=${encodeURIComponent(initData)}`;
+  // initData headerda kerak bo'lgani uchun fetch orqali yuklab, blob sifatida ochamiz
+  fetch(`/api/admin/reports/download?period=${currentPeriod}`, {
+    headers: { "X-Init-Data": initData }
+  }).then(async res => {
+    if (!res.ok) throw new Error((await res.json()).detail || "Xatolik");
+    const blob = await res.blob();
+    const link = document.createElement("a");
+    const objUrl = window.URL.createObjectURL(blob);
+    link.href = objUrl;
+    link.download = `hisobot_${currentPeriod}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    if (tg && tg.openLink) {
+      // Ba'zi qurilmalarda to'g'ridan-to'g'ri yuklash ishlamasligi mumkin
+    }
+  }).catch(e => alert("Xatolik: " + e.message));
+}
+
+// ---------------- Init ----------------
+async function loadAll() {
+  [teachers, fineTypes] = await Promise.all([
+    api("/api/admin/teachers"),
+    api("/api/admin/fine-types"),
+  ]);
+  renderTeachersAdmin();
+  renderFineTypesAdmin();
+}
+
+async function init() {
+  try {
+    me = await api("/api/me");
+    if (!me.is_admin) {
+      document.body.innerHTML = `<div class="empty" style="margin-top:60px;">⛔ Sizda admin panelga kirish huquqi yo'q.</div>`;
+      return;
+    }
+    document.getElementById("whoami").textContent = me.is_super_admin ? "⭐ Bosh administrator" : "🛡 Administrator";
+    document.getElementById("fabAdmins").style.display = "none";
+    fillMonthPicker();
+    admins = await api("/api/admin/admins");
+    renderAdmins();
+    await loadAll();
+    await loadReport();
+  } catch (e) {
+    document.body.innerHTML = `<div class="empty" style="margin-top:60px;">Xatolik: ${e.message}</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+jarimabot.db
+exports/*.xlsx
+venv/
+.venv/
